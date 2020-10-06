@@ -7,11 +7,12 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+//variable end used to defy the end of command/string
 char *getWord(char *end) {
     char *arr = NULL;
     char c = getchar();
     int i = 0;
-    while (c != ' ' && c != '\n') {
+    while (c != ' ' && c != '\n' && c != '\t') {
         i++;
         arr = realloc(arr, i * sizeof(char));
         arr[i - 1] = c;
@@ -23,14 +24,14 @@ char *getWord(char *end) {
     return arr;
 }
 
-char **getList(int *si, int *so, int *fd) {
-    char fname[100];
+char **getList() {
     char **arr = NULL;
     char end;
     char *c = getWord(&end);
     int i = 0;
     while (1) {
         if (end == '\n') {
+            //if we meet empty string, do nothing
             if (strlen(c) == 0) {
                 arr = realloc(arr, (i + 1) * sizeof(char*));
                 arr[i] = NULL;
@@ -46,32 +47,54 @@ char **getList(int *si, int *so, int *fd) {
         arr = realloc(arr, i * sizeof(char*));
         arr[i - 1] = c;
         c = getWord(&end);
-        if (!strcmp(c, ">")) {
-            free(c);
-            c = getWord(&end);
-            strcpy(fname, c);
-            free(c);
-            *so = open(fname,
+    }
+    return arr;
+}
+
+//changes file descriptors so program could read/write to file
+int checkRedirect(char **cmd) {
+    int i = 0;
+    char fname[100];
+    int fd;
+    while (cmd[i]) {
+        if (strcmp(cmd[i], ">") == 0) {
+            strcpy(fname, cmd[i+1]);
+            fd = open(fname,
                 O_WRONLY | O_CREAT | O_TRUNC ,
                 S_IRUSR | S_IWUSR);
-            *fd = *so;
-            arr = realloc(arr, (i + 1) * sizeof(char*));
-            arr[i] = NULL;
-            break;
-        } else if (!strcmp(c, "<")) {
-            free(c);
-            c = getWord(&end);
-            strcpy(fname, c);
-            free(c);
-            *si = open(fname, O_RDONLY);
-            *fd = *si;
-            arr = realloc(arr, (i + 1) * sizeof(char*));
-            arr[i] = NULL;
-            break;
+            dup2(fd, 1);
+            free(cmd[i]);//free to prevent SEGfault
+            cmd[i] = NULL;//needs to be done because execvp
+                          //reads command before meeting NULL
+            return 1;
+        } else if (strcmp(cmd[i], "<") == 0) {
+            strcpy(fname, cmd[i+1]);
+            fd =  open(fname, O_RDONLY);
+            dup2(fd, 0);
+            free(cmd[i]);//same here
+            cmd[i] = NULL;
+            return 1;
         }
+        i++;
     }
-    
-    return arr;
+    return 0;
+}
+
+//to do this function
+void checkPipeline(char **cmd, int *x) {
+    int i = 0;
+    while (cmd[i]) {
+        
+        i++;
+    }
+}
+
+int execute(char **cmd, int x) {
+    if (execvp(cmd[x], cmd) < 0) {
+        perror("exec failed");
+        return 1;
+    }
+    return 0;
 }
 
 void clearList(char **s) {
@@ -84,31 +107,19 @@ void clearList(char **s) {
 }
 
 int main() {
-    int si = 0;//input
-    int so = 1;//output
-    int fd = -1;
-    char **cmd = getList(&si, &so, &fd);
+    int x = 0;//from which place cmd is executed
+    char **cmd = getList();
     while (!cmd[0] || (strcmp(cmd[0], "exit") && strcmp(cmd[0], "quit"))) {
         if (cmd[0]) {
-            if (fork() > 0){
+            if (fork() > 0) {
                 wait(NULL);
             } else {
-                dup2(si, 0);
-                dup2(so, 1);
-                if (execvp(cmd[0], cmd) < 0) {
-                    perror ("exec failed");
-                    return 1;
-                }
-            }
-            if (fd >= 2) {
-                close(fd);
-                fd = -1;
-                si = 0;
-                so = 1;
+                checkRedirect(cmd);
+                return execute(cmd, x);
             }
         }
-        clearList(cmd);
-        cmd = getList(&si, &so, &fd);
+        clearList(cmd);//prevent segfault
+        cmd = getList();
     }
     clearList(cmd);
     return 0;
