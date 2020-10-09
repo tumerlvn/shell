@@ -135,16 +135,17 @@ int main() {
             }
 
             if (fork() == 0) {
-                printf("cnt = %d\n", cnt);
+                //printf("cnt = %d\n", cnt);
                 if (cnt) dup2(fd[0][1], 1);
                 close(fd[0][1]);
                 close(fd[0][0]);
 
-                //checkRedirect(cmd);
+                checkRedirect(cmd);
                 return execute(cmd, x[0]);
-            } /*else {
-                waitpid(pid, NULL, 0);
-            }*/
+            } else {
+                //close(fd[0][1]);
+                //close(fd[0][0]);
+            }
 
 
 
@@ -154,24 +155,26 @@ int main() {
                     close(fd[i - 1][0]);
                     close(fd[i - 1][1]);
 
-                        puts("1");
+                        //puts("1");
                     if (i != cnt) {
-                        puts("2");
+                        //puts("2");
                         dup2(fd[i][1], 1);
                     }
                     close(fd[i][1]);
                     close(fd[i][0]);
 
-                    //checkRedirect(cmd);
+                    checkRedirect(cmd);
                     return execute(cmd, x[i]);
-                } /*else {
-                    waitpid(pid, NULL, 0);
-                }*/
+                } else {
+                    close(fd[i - 1][1]);
+                    close(fd[i - 1][0]);
+
+                }
             }
+            close(fd[cnt][1]);
+            close(fd[cnt][0]);
             for (int i = 0; i <= cnt; i++) {
-                //wait(NULL);
-                close(fd[i][0]);
-                close(fd[i][1]);
+                wait(NULL);
             }
 //            fd = realloc(fd, sizeof(int[2]));
         }
