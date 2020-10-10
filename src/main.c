@@ -129,14 +129,12 @@ int main() {
     x = malloc(1 * sizeof(int));
     x[0] = 0;//from which place cmd is executed
 
-    //int (*fd)[2] = malloc(sizeof(int[2]));
-    int fd[100][2];
     int cnt;
     char **cmd = getList();
     while (!cmd[0] || (strcmp(cmd[0], "exit") && strcmp(cmd[0], "quit"))) {
         if (cmd[0]) {
             cnt = checkPipeline(cmd, &x);
-             //if (cnt) fd = realloc(fd, (cnt + 1) * sizeof(int[2]));
+            int (*fd)[2] = malloc((cnt + 1) * sizeof(int[2]));
             for (int i = 0; i <= cnt; i++) {
                 pipe(fd[i]);
             }
@@ -162,7 +160,7 @@ int main() {
                     close(fd[i][1]);
                     close(fd[i][0]);
 
-                    checkRedirect(cmd, x[0]); 
+                    checkRedirect(cmd, x[i]); 
                     return execute(cmd, x[i]);
                 } else {
                     close(fd[i - 1][1]);
@@ -175,7 +173,7 @@ int main() {
             for (int i = 0; i <= cnt; i++) {
                 wait(NULL);
             }
-//            fd = realloc(fd, sizeof(int[2]));
+            free(fd);
         }
         clearList(cmd, x, cnt);//prevent segfault
         free(x);
@@ -183,7 +181,6 @@ int main() {
         x[0] = 0;
         cmd = getList();
     }
- //   free(fd);
     clearList(cmd, x, 0);
     free(x);
     return 0;
