@@ -52,35 +52,42 @@ char **getList() {
 }
 
 //changes file descriptors so program could read/write to file
-int checkRedirect(char **cmd) {
-    int i = 0;
+int checkRedirect(char **cmd, int x) {
+    int i = x;
     char fname[100];
-    int fd;
     while (cmd[i]) {
         if (strcmp(cmd[i], ">") == 0) {
             strcpy(fname, cmd[i+1]);
-            fd = open(fname,
+            int fd1 = open(fname,
                 O_WRONLY | O_CREAT | O_TRUNC ,
                 S_IRUSR | S_IWUSR);
-            dup2(fd, 1);
+            dup2(fd1, 1);
             free(cmd[i]);       //free to prevent SEGfault
-            cmd[i] = NULL;      //needs to be done because execvp
-                                //reads command before meeting NULL
-            return 1;
-        } else if (strcmp(cmd[i], "<") == 0) {
-            strcpy(fname, cmd[i+1]);
-            fd =  open(fname, O_RDONLY);
-            dup2(fd, 0);
-            free(cmd[i]);//same here
+            free(cmd[i+1]);
+            
             cmd[i] = NULL;
-            return 1;
+            cmd[i + 1] = NULL;      //needs to be done because execvp
+                                    //reads command before meeting NULL
+            i++;
+            close(fd1);
+        }
+
+        if (cmd[i] && strcmp(cmd[i], "<") == 0) {
+            strcpy(fname, cmd[i+1]);
+            int fd2 =  open(fname, O_RDONLY);
+            dup2(fd2, 0);
+            free(cmd[i]);//same here
+            free(cmd[i+1]);
+            cmd[i] = NULL;
+            cmd[i + 1] = NULL;
+            i++;
+            close(fd2);
         }
         i++;
     }
     return 0;
 }
 
-//to do this function
 //x[0] == 0
 int checkPipeline(char **cmd, int **x) {
     int i = 0;
@@ -135,19 +142,13 @@ int main() {
             }
 
             if (fork() == 0) {
-                //printf("cnt = %d\n", cnt);
                 if (cnt) dup2(fd[0][1], 1);
                 close(fd[0][1]);
                 close(fd[0][0]);
 
-                checkRedirect(cmd);
+                checkRedirect(cmd, x[0]);
                 return execute(cmd, x[0]);
-            } else {
-                //close(fd[0][1]);
-                //close(fd[0][0]);
             }
-
-
 
             for (int i = 1; i <= cnt; i++) {
                 if (fork() == 0) {
@@ -155,15 +156,13 @@ int main() {
                     close(fd[i - 1][0]);
                     close(fd[i - 1][1]);
 
-                        //puts("1");
                     if (i != cnt) {
-                        //puts("2");
                         dup2(fd[i][1], 1);
                     }
                     close(fd[i][1]);
                     close(fd[i][0]);
 
-                    checkRedirect(cmd);
+                    checkRedirect(cmd, x[0]); 
                     return execute(cmd, x[i]);
                 } else {
                     close(fd[i - 1][1]);
