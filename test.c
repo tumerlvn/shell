@@ -7,11 +7,12 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+//variable end used to defy the end of command/string
 char *getWord(char *end) {
     char *arr = NULL;
     char c = getchar();
     int i = 0;
-    while (c != ' ' && c != '\n') {
+    while (c != ' ' && c != '\n' && c != '\t') {
         i++;
         arr = realloc(arr, i * sizeof(char));
         arr[i - 1] = c;
@@ -23,14 +24,14 @@ char *getWord(char *end) {
     return arr;
 }
 
-char **getList(int *si, int *so, int *fd) {
-    char fname[100];
+char **getList() {
     char **arr = NULL;
     char end;
     char *c = getWord(&end);
     int i = 0;
     while (1) {
         if (end == '\n') {
+            //if we meet empty string, do nothing
             if (strlen(c) == 0) {
                 arr = realloc(arr, (i + 1) * sizeof(char*));
                 arr[i] = NULL;
@@ -46,70 +47,60 @@ char **getList(int *si, int *so, int *fd) {
         arr = realloc(arr, i * sizeof(char*));
         arr[i - 1] = c;
         c = getWord(&end);
-        if (!strcmp(c, ">")) {
-            free(c);
-            c = getWord(&end);
-            strcpy(fname, c);
-            free(c);
-            *so = open(fname,
-                O_WRONLY | O_CREAT | O_TRUNC ,
-                S_IRUSR | S_IWUSR);
-            *fd = *so;
-            arr = realloc(arr, (i + 1) * sizeof(char*));
-            arr[i] = NULL;
-            break;
-        } else if (!strcmp(c, "<")) {
-            free(c);
-            c = getWord(&end);
-            strcpy(fname, c);
-            free(c);
-            *si = open(fname, O_RDONLY);
-            *fd = *si;
-            arr = realloc(arr, (i + 1) * sizeof(char*));
-            arr[i] = NULL;
-            break;
-        }
     }
-    
     return arr;
 }
 
-void clearList(char **s) {
+
+
+//to do this function
+//x[0] == 0
+int checkPipeline(char **cmd, int **x) {
     int i = 0;
-    while (s[i]) {
-        free(s[i]);
+    int cnt = 0;
+    while (cmd[i]) {
+        if (strcmp(cmd[i], "|") == 0) {
+            free(cmd[i]);
+            cmd[i] = NULL;
+            cnt++;
+            *x = realloc(*x, (cnt + 1) * sizeof(int));
+            (*x)[cnt] = i + 1;
+        }
         i++;
+    }
+    return cnt;
+}
+
+void clearList(char **s, int *x, int cnt) {
+    for (int j = 0; j < cnt + 1; j++) {
+        int i = x[j];
+        while (s[i]) {
+            puts(s[i]);
+            free(s[i]);
+            i++;
+        }
     }
     free(s);
 }
 
 int main() {
-    int si = 0;//input
-    int so = 1;//output
-    int fd = -1;
-    char **cmd = getList(&si, &so, &fd);
-    while (!cmd[0] || (strcmp(cmd[0], "exit") && strcmp(cmd[0], "quit"))) {
-        if (cmd[0]) {
-            if (fork() > 0){
-                wait(NULL);
-            } else {
-                dup2(si, 0);
-                dup2(so, 1);
-                if (execvp(cmd[0], cmd) < 0) {
-                    perror ("exec failed");
-                    return 1;
-                }
-            }
-            if (fd >= 2) {
-                close(fd);
-                fd = -1;
-                si = 0;
-                so = 1;
-            }
-        }
-        clearList(cmd);
-        cmd = getList(&si, &so, &fd);
+    int fd[2];
+    pipe(fd);
+    char text[] = "hello";
+    char buf[100] = {0};
+    if (fork() == 0) {
+        dup2(fd[1], 1);
+        close(fd[0]);
+        close(fd[1]);
+        write(1, text, 5);
     }
-    clearList(cmd);
+    dup2(fd[0], 0);
+    close(fd[0]);
+    close(fd[1]);
+    read(0, buf, 2);
+    wait(NULL);
+    read(0, buf + 2, 3);
+    puts(buf);
+
     return 0;
 }
