@@ -141,31 +141,34 @@ int main() {
 
             if (fork() == 0) {
                 if (cnt) dup2(fd[0][1], 1);
-                close(fd[0][1]);
-                close(fd[0][0]);
-
+                for (int j = cnt; j >= 0; j--) {
+                    close(fd[j][1]);
+                    close(fd[j][0]);
+                }
                 checkRedirect(cmd, x[0]);
-                return execute(cmd, x[0]);
+                if (execute(cmd, x[0])) {
+                    clearList(cmd, x, cnt);//prevent segfault
+                    cnt = 0;
+                    return 1;
+                }
+                return 0;
             }
-
             for (int i = 1; i <= cnt; i++) {
                 if (fork() == 0) {
                     dup2(fd[i - 1][0], 0);
-                    close(fd[i - 1][0]);
-                    close(fd[i - 1][1]);
-
                     if (i != cnt) {
                         dup2(fd[i][1], 1);
                     }
-                    close(fd[i][1]);
-                    close(fd[i][0]);
+                    for (int j = cnt; j >= 0; j--) {
+                        close(fd[j][1]);
+                        close(fd[j][0]);
+                    }
 
                     checkRedirect(cmd, x[i]); 
                     return execute(cmd, x[i]);
                 } else {
                     close(fd[i - 1][1]);
                     close(fd[i - 1][0]);
-
                 }
             }
             close(fd[cnt][1]);
