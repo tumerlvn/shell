@@ -1,2 +1,2 @@
-%: %.c
-	gcc $@.c -o $@ -Wall -Werror -lm -fsanitize=address,leak
+default:	
+	gcc src/main.c -o bin/main -Wall -lm -fsanitize=address,leak
