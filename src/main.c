@@ -10,8 +10,22 @@
 //variable end used to defy the end of command/string
 char *getWord(char *end) {
     char *arr = NULL;
-    char c = getchar();
     int i = 0;
+    if (*end == '\n') {
+        return NULL;
+    }
+    char c = getchar();
+    if (c == '\n') {
+        *end = c;
+        return NULL;
+    }
+    while (i == 0 && (c == ' ' || c == '\t' )) { 
+        c = getchar();
+        if (c == '\n') {
+            *end = c;
+            return NULL;
+        }
+    }
     while (c != ' ' && c != '\n' && c != '\t') {
         i++;
         arr = realloc(arr, i * sizeof(char));
